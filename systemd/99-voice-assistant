@@ -1,1 +1,29 @@
 
+#!/bin/bash
+# Shows voice assistant status, hardware check results, and recent events
+# on every SSH login. Install to /etc/update-motd.d/99-voice-assistant and
+# chmod +x it.
+
+echo ""
+echo "=== Voice Assistant ==="
+if systemctl is-active --quiet voice-assistant; then
+    echo "Service: OK (running)"
+else
+    echo "Service: NOT RUNNING"
+fi
+
+if [ -f /root/voice-assistant-events.log ]; then
+    echo ""
+    echo "Hardware:"
+    grep -E "Microphone:|Speaker:" /root/voice-assistant-events.log | tail -2
+    echo ""
+    echo "Recent events:"
+    tail -8 /root/voice-assistant-events.log
+else
+    echo "  (no events yet)"
+fi
+
+echo ""
+echo "Full logs: journalctl -u voice-assistant -f"
+echo "======================="
+echo ""
