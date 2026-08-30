@@ -1,0 +1,13 @@
+[Unit]
+Description=Offline Voice Assistant
+After=sound.target network.target
+
+[Service]
+ExecStart=/root/vosk-env/bin/python3 -u /root/main.py
+WorkingDirectory=/root
+Restart=always
+RestartSec=3
+User=root
+
+[Install]
+WantedBy=multi-user.target
