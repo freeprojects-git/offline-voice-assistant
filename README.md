@@ -1,2 +1,99 @@
-# offline-voice-assistant
-Offline voice assistant on Orange PI Zero 3
+# 🎙️ Offline Voice Assistant on Orange Pi Zero 3
+
+Повністю офлайн голосовий помічник українською мовою на Orange Pi Zero 3 (4GB).
+Розпізнає мовлення, виконує прості команди, відповідає на довільні питання через локальну LLM — і все це без жодного підключення до інтернету під час роботи.
+
+```
+USB-мікрофон → VAD → Vosk (STT) → наміри / LLM fallback → Piper (TTS) → USB-динамік
+```
+
+![status](https://img.shields.io/badge/status-working-brightgreen)
+![platform](https://img.shields.io/badge/platform-Orange%20Pi%20Zero%203-blue)
+![license](https://img.shields.io/badge/license-MIT-lightgrey)
+
+## Демо
+
+`[ФОТО/GIF: демонстрація розпізнавання команди]`
+
+## Чому це цікаво
+
+- **Повністю офлайн** — жодного хмарного API, жодної передачі голосу назовні
+- Працює на **дуже слабкому залізі** (4-ядерний ARM, без GPU, 4GB RAM)
+- Українська мова "з коробки" (Vosk + Piper мають готові українські моделі)
+- Реальна, задокументована історія налагодження — включно з тим, що **не спрацювало** (I²S, Bluetooth-мікрофон) і чому
+
+## Залізо
+
+| Компонент | Модель | Призначення |
+|---|---|---|
+| SBC | Orange Pi Zero 3 (4GB RAM) | основна плата |
+| Аудіо | UGREEN CM383 (USB Audio, ALC4030) | вхід/вихід звуку |
+| Мікрофон/навушники | Будь-які дротові з TRRS-роз'ємом | вхід/вихід |
+
+> Початковий план був на I²S (INMP441 + MAX98357A) — не запрацював стабільно з ASR. Повна історія в [`docs/JOURNEY.md`](docs/JOURNEY.md).
+
+## Софт-стек
+
+| Шар | Інструмент |
+|---|---|
+| OS | Armbian |
+| VAD | [webrtcvad](https://github.com/wiseman/py-webrtcvad) |
+| STT | [Vosk](https://alphacephei.com/vosk/) (`vosk-model-small-uk-v3-small`) |
+| Наміри | Python `re` (без ML) |
+| LLM (fallback) | [llama.cpp](https://github.com/ggerganov/llama.cpp) + Gemma-2-2B-it (GGUF, Q4_K_M) |
+| TTS | [Piper](https://github.com/rhasspy/piper) (`uk_UA-lada-x_low`) |
+| Автозапуск | systemd |
+
+## Швидкий старт
+
+```bash
+git clone https://github.com/<your-username>/orangepi-voice-assistant.git
+cd orangepi-voice-assistant
+chmod +x install.sh
+./install.sh
+```
+
+`install.sh` встановить системні пакети, Python-залежності, завантажить моделі Vosk/Piper і зареєструє systemd-сервіс. Детальний покроковий гайд без скрипта — у [`docs/SETUP.md`](docs/SETUP.md).
+
+Зібрати `llama.cpp` і завантажити LLM-модель (~1.6GB) потрібно окремо — див. [`docs/SETUP.md#llm`](docs/SETUP.md).
+
+## Структура репозиторію
+
+```
+.
+├── scripts/
+│   ├── main.py           # головний цикл: VAD -> Vosk -> наміри/LLM -> Piper
+│   ├── intents.py        # прості голосові команди (regex-based)
+│   └── llm_helper.py     # обгортка над llama.cpp для fallback-відповідей
+├── systemd/
+│   ├── voice-assistant.service
+│   └── 99-voice-assistant   # MOTD-скрипт: статус при SSH-вході
+├── docs/
+│   ├── JOURNEY.md         # повна історія налагодження, з проблемами й рішеннями
+│   └── SETUP.md           # покроковий гайд встановлення вручну
+├── install.sh
+└── README.md
+```
+
+## Наміри "з коробки"
+
+- "привіт" → привітання
+- "увімкни/вимкни світло" → приклад команди (треба додати реальну інтеграцію з розумним домом)
+- "котра година" → заглушка (додайте реальний виклик системного часу)
+- будь-яке інше питання → відповідає локальна LLM (Gemma-2-2B), ~30–60 сек на коротку відповідь
+
+Розширення намірів — просто додайте новий шаблон у `scripts/intents.py`.
+
+## Відомі обмеження
+
+- LLM-відповіді повільні (~1 токен/сек на цьому CPU) — свідомий компроміс якість/швидкість, див. `docs/JOURNEY.md`
+- Bluetooth-аудіо (вхід і вихід одночасно) виявився нестабільним на цій комбінації заліза/ПЗ — детально в `docs/JOURNEY.md`
+- Немає апаратного RTC — час "з'їжджає" при вимкненні без інтернету (`fake-hwclock` частково рятує)
+
+## Ліцензія
+
+MIT — див. [`LICENSE`](LICENSE)
+
+## Подяки / натхнення
+
+Проєкт побудований повністю на open-source інструментах: Vosk, Piper, llama.cpp, webrtcvad, Armbian.
